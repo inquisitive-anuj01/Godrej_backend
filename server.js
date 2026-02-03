@@ -6,40 +6,38 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration - Allow all Vercel frontend domains
+// CORS Configuration - Define allowedOrigins FIRST!
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'https://godrej-chi.vercel.app',
-    'https://godrej-chi.vercel.app/',
     'https://godrejarden.in',
     'https://www.godrejarden.in'
 ];
 
-// Middleware
-app.use(cors({
+const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log('Blocked by CORS:', origin);
-            callback(null, true); // Allow all for now, you can change to false later
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
         }
+
+        console.log('Blocked by CORS:', origin);
+        return callback(null, true); // Allow all for now
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
 
-// Handle preflight OPTIONS requests
-app.options('*', cors());
-
+// Middleware
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
-// Google Sheets setup - Update these for Godrej Arden
+// Google Sheets setup
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Godrej Arden Lead Sheet';
 
@@ -47,7 +45,7 @@ const SHEET_NAME = 'Godrej Arden Lead Sheet';
 const auth = new google.auth.GoogleAuth({
     credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -56,11 +54,9 @@ const auth = new google.auth.GoogleAuth({
 async function testConnection() {
     try {
         const sheets = google.sheets({ version: 'v4', auth });
-
         const response = await sheets.spreadsheets.get({
             spreadsheetId: SPREADSHEET_ID,
         });
-
         console.log('✅ Connected to Google Sheets:', response.data.properties.title);
         return true;
     } catch (error) {
@@ -73,7 +69,6 @@ async function testConnection() {
 async function prepareSheet() {
     try {
         const sheets = google.sheets({ version: 'v4', auth });
-
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A1:I1`,
@@ -83,14 +78,12 @@ async function prepareSheet() {
             const headers = [
                 ['Timestamp', 'Name', 'Email', 'Phone', 'City', 'Details', 'Form Type', 'Source', 'Submission Time']
             ];
-
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
                 range: `${SHEET_NAME}!A1:I1`,
                 valueInputOption: 'USER_ENTERED',
                 requestBody: { values: headers }
             });
-
             console.log('✅ Headers created in Google Sheet');
         } else {
             console.log('✅ Headers already exist in Google Sheet');
@@ -156,7 +149,6 @@ app.post('/api/submit-form', async (req, res) => {
 
         // Append data to Google Sheet
         const sheets = google.sheets({ version: 'v4', auth });
-
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A:I`,
@@ -167,21 +159,14 @@ app.post('/api/submit-form', async (req, res) => {
 
         console.log('✅ Data written to Google Sheets:', { name, email });
 
-        // Return success response
         res.status(200).json({
             success: true,
             message: 'Form submitted successfully',
-            data: {
-                name,
-                email,
-                phone: cleanPhone,
-                formType
-            }
+            data: { name, email, phone: cleanPhone, formType }
         });
 
     } catch (error) {
         console.error('❌ Error submitting form:', error);
-
         res.status(500).json({
             error: 'Failed to submit form. Please try again later.',
             details: error.message,
@@ -194,12 +179,10 @@ app.post('/api/submit-form', async (req, res) => {
 app.get('/api/test', async (req, res) => {
     try {
         const sheets = google.sheets({ version: 'v4', auth });
-
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A1:I10`,
         });
-
         res.status(200).json({
             success: true,
             message: 'Google Sheets connection successful',
@@ -223,16 +206,14 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Get all submissions (for admin)
+// Get all submissions
 app.get('/api/submissions', async (req, res) => {
     try {
         const sheets = google.sheets({ version: 'v4', auth });
-
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A:I`,
         });
-
         res.status(200).json({
             success: true,
             data: response.data.values || []
@@ -262,16 +243,10 @@ app.get('/', (req, res) => {
 // Start server
 async function startServer() {
     const connected = await testConnection();
-
     if (connected) {
         await prepareSheet();
-
         app.listen(PORT, () => {
             console.log(`🚀 Godrej Arden Server running on port ${PORT}`);
-            console.log(`📊 Google Sheet: https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`);
-            console.log(`🔗 Test API: http://localhost:${PORT}/api/test`);
-            console.log(`🔗 Health: http://localhost:${PORT}/health`);
-            console.log(`📝 Submit form: http://localhost:${PORT}/api/submit-form`);
         });
     } else {
         console.error('Cannot start server due to Google Sheets connection failure');
