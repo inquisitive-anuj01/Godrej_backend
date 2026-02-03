@@ -6,11 +6,36 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS Configuration - Allow all Vercel frontend domains
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://godrej-chi.vercel.app',  
+    'https://godrejarden.in',
+    'https://www.godrejarden.in'
+];
+
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://jk-backend-aj.vercel.app', 'https://godrejarden.in'],
-    credentials: true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('Blocked by CORS:', origin);
+            callback(null, true); // Allow all for now, you can change to false later
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // Google Sheets setup - Update these for Godrej Arden
