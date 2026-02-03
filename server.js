@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://godrejarden.vercel.app', 'https://godrejarden.in'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://jk-backend-aj.vercel.app', 'https://godrejarden.in'],
     credentials: true
 }));
 app.use(express.json());
