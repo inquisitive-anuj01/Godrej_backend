@@ -10,8 +10,9 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
     'http://localhost:5173',
     'https://godrej-seven.vercel.app',
-    'https://godrejarden.in',
-    'https://www.godrejarden.in'
+    // 'https://godrejarden.in',
+    // 'https://www.godrejarden.in',
+    'https://godrejprojects.net'
 ];
 
 const corsOptions = {
